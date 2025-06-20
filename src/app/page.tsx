@@ -1,103 +1,144 @@
-import Image from "next/image";
+"use client";
+import React, { useState, useEffect } from 'react';
+import Sidebar from '../components/Sidebar';
+import TaskList from '../components/TaskList';
+import TaskForm from '../components/TaskForm';
+import TaskDetails from '../components/TaskDetails';
+import { supabase } from '../utils/supabaseClient';
 
-export default function Home() {
+const initialUsers = [
+  {
+    id: 'e1cbe6b7-1234-4a7e-bc28-1234567890ab',
+      email: 'alice@example.com',
+      full_name: 'Alice',
+      role: 'owner',
+      avatar_url: null
+    },
+    {
+      id: 'a2bce6b7-5678-4a7e-bc28-0987654321cd',
+      email: 'bob@example.com',
+      full_name: 'Bob',
+      role: 'admin',
+      avatar_url: null
+    },
+    {
+      id: 'c3def6b7-9012-4a7e-bc28-567890abcdef',
+      email: 'carol@example.com',
+      full_name: 'Carol',
+      role: 'member',
+      avatar_url: null
+  }
+];
+
+type Task = {
+  id: string;
+  title: string;
+  description: string;
+  assignee: string;
+  due_date: string;
+  status: string;
+};
+
+export default function HomePage() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editTask, setEditTask] = useState<Task | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch tasks from Supabase
+  useEffect(() => {
+    const fetchTasks = async () => {
+      setLoading(true);
+      const { data, error } = await supabase.from('tasks').select('*').order('due_date', { ascending: true });
+      if (!error && data) setTasks(data);
+      setLoading(false);
+    };
+    fetchTasks();
+  }, []);
+
+  // Add or update task in Supabase
+  const handleSaveTask = async (task: Partial<Task>) => {
+    setLoading(true);
+    if (task.id) {
+      await supabase.from('tasks').update({
+        title: task.title,
+        description: task.description,
+        assignee: task.assignee,
+        due_date: task.due_date,
+        status: task.status,
+      }).eq('id', task.id);
+    } else {
+      await supabase.from('tasks').insert([
+        {
+          title: task.title,
+          description: task.description,
+          assignee: task.assignee,
+          due_date: task.due_date,
+          status: task.status || 'todo',
+        },
+      ]);
+    }
+    // Re-fetch tasks
+    const { data } = await supabase.from('tasks').select('*').order('due_date', { ascending: true });
+    setTasks(data || []);
+    setShowForm(false);
+    setEditTask(null);
+    setSelectedTask(null);
+    setLoading(false);
+  };
+
+  const handleSelectTask = (task: Task) => {
+    setSelectedTask(task);
+  };
+
+  const handleEditTask = (task: Task) => {
+    setEditTask(task);
+    setShowForm(true);
+    setSelectedTask(null);
+  };
+
+  const handleNewTask = () => {
+    setEditTask(null);
+    setShowForm(true);
+    setSelectedTask(null);
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="flex min-h-screen bg-gray-50">
+      <Sidebar />
+      <main className="flex-1 flex flex-col">
+        <header className="flex items-center justify-between p-6 border-b bg-white">
+          <h1 className="text-2xl font-bold">Task Assign</h1>
+          <button
+            className="bg-blue-600 text-white px-4 py-2 rounded"
+            onClick={handleNewTask}
+            disabled={loading}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+            + New Task
+          </button>
+        </header>
+        <div className="flex-1 flex overflow-hidden">
+          <TaskList tasks={tasks} onSelectTask={handleSelectTask} />
+          {showForm && (
+            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+              <TaskForm
+                onSave={handleSaveTask}
+                users={initialUsers}
+                initialTask={editTask}
+                onCancel={() => setShowForm(false)}
+              />
+            </div>
+          )}
+          {selectedTask && (
+            <TaskDetails
+              task={selectedTask}
+              onEdit={handleEditTask}
+              onClose={() => setSelectedTask(null)}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          )}
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
