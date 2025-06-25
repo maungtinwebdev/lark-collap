@@ -1,11 +1,27 @@
 import React, { useState } from 'react';
 import UserSelector from './UserSelector';
+import { Task } from '../lib/types';
 
-const TaskForm = ({ onSave, users, initialTask, onCancel }: any) => {
+type User = {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  avatar_url: string | null;
+};
+
+interface TaskFormProps {
+  onSave: (task: Partial<Task>) => void;
+  users: User[];
+  initialTask?: Partial<Task>;
+  onCancel?: () => void;
+}
+
+const TaskForm = ({ onSave, users, initialTask, onCancel }: TaskFormProps) => {
   const [title, setTitle] = useState(initialTask?.title || '');
   const [description, setDescription] = useState(initialTask?.description || '');
-  const [assignee, setAssignee] = useState(initialTask?.assignee || users[0]);
-  const [dueDate, setDueDate] = useState(initialTask?.dueDate || '');
+  const [assignee, setAssignee] = useState(initialTask?.assigned_to || users[0].id);
+  const [dueDate, setDueDate] = useState(initialTask?.due_date || '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -13,8 +29,8 @@ const TaskForm = ({ onSave, users, initialTask, onCancel }: any) => {
       ...initialTask,
       title,
       description,
-      assignee,
-      dueDate,
+      assigned_to: assignee,
+      due_date: dueDate,
       status: initialTask?.status || 'todo',
     });
   };
@@ -29,6 +45,8 @@ const TaskForm = ({ onSave, users, initialTask, onCancel }: any) => {
           value={title}
           onChange={e => setTitle(e.target.value)}
           required
+          placeholder="Task title"
+          title="Task title"
         />
       </div>
       <div className="mb-4">
@@ -37,6 +55,8 @@ const TaskForm = ({ onSave, users, initialTask, onCancel }: any) => {
           className="w-full border rounded px-3 py-2"
           value={description}
           onChange={e => setDescription(e.target.value)}
+          placeholder="Task description"
+          title="Task description"
         />
       </div>
       <div className="mb-4">
@@ -50,6 +70,8 @@ const TaskForm = ({ onSave, users, initialTask, onCancel }: any) => {
           className="w-full border rounded px-3 py-2"
           value={dueDate}
           onChange={e => setDueDate(e.target.value)}
+          placeholder="Due date"
+          title="Due date"
         />
       </div>
       <div className="flex gap-2">
